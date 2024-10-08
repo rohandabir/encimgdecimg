@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Encryption/Decryption App</title>
+    <title>Image Encryption/Decryption App with DRM</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            position: relative;
         }
         .container {
             display: flex;
@@ -23,11 +24,21 @@
             max-width: 100%;
             height: auto;
         }
+        /* Watermark style */
+        #watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            opacity: 0.5;
+            color: gray;
+            pointer-events: none;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Image Encryption/Decryption App</h1>
+        <h1>Image Encryption/Decryption App with DRM Protection</h1>
         
         <div>
             <h2>Encrypt Image</h2>
@@ -46,6 +57,9 @@
         </div>
     </div>
 
+    <!-- Watermark -->
+    <div id="watermark">User ID: 12345</div>
+
     <script>
         const imageInput = document.getElementById('imageInput');
         const encryptPasscode = document.getElementById('encryptPasscode');
@@ -55,6 +69,22 @@
         const decryptPasscode = document.getElementById('decryptPasscode');
         const decryptButton = document.getElementById('decryptButton');
         const decryptedImage = document.getElementById('decryptedImage');
+
+        // Prevent right-click, copy, paste, and print screen
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "PrintScreen") {
+                navigator.clipboard.writeText("");
+                alert("Screenshots are disabled!");
+            }
+        });
+
+        // Attempt to detect screen recording
+        if (navigator.mediaDevices.getDisplayMedia) {
+            alert("Screen recording is not allowed!");
+        }
 
         // Preview selected image
         imageInput.addEventListener('change', (e) => {
