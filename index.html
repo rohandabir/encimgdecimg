@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Encryption/Decryption App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        input, button {
+            margin: 5px 0;
+        }
+        #previewImage, #decryptedImage {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Encryption/Decryption App</h1>
+        
+        <div>
+            <h2>Encrypt Image</h2>
+            <input type="file" id="imageInput" accept="image/*">
+            <input type="password" id="encryptPasscode" placeholder="Enter 4-digit passcode" maxlength="4">
+            <button id="encryptButton">Encrypt and Download</button>
+            <img id="previewImage" alt="Preview" style="display: none;">
+        </div>
+        
+        <div>
+            <h2>Decrypt Image</h2>
+            <input type="file" id="encryptedInput" accept=".enc">
+            <input type="password" id="decryptPasscode" placeholder="Enter 4-digit passcode" maxlength="4">
+            <button id="decryptButton">Decrypt and Display</button>
+            <img id="decryptedImage" alt="Decrypted" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const encryptPasscode = document.getElementById('encryptPasscode');
+        const encryptButton = document.getElementById('encryptButton');
+        const previewImage = document.getElementById('previewImage');
+        const encryptedInput = document.getElementById('encryptedInput');
+        const decryptPasscode = document.getElementById('decryptPasscode');
+        const decryptButton = document.getElementById('decryptButton');
+        const decryptedImage = document.getElementById('decryptedImage');
+
+        // Preview selected image
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Encrypt and download image
+        encryptButton.addEventListener('click', async () => {
+            const file = imageInput.files[0];
+            const passcode = encryptPasscode.value;
+
+            if (!file || passcode.length !== 4 || isNaN(passcode)) {
+                alert('Please select an image and enter a valid 4-digit passcode.');
+                return;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const key = await deriveKey(passcode);
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encryptedData = await encryptData(arrayBuffer, key, iv);
+
+                const combinedData = new Uint8Array(iv.length + encryptedData.length);
+                combinedData.set(iv);
+                combinedData.set(encryptedData, iv.length);
+
+                const blob = new Blob([combinedData], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'encrypted_image.enc';
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Encryption error:', error);
+                alert('An error occurred during encryption.');
+            }
+        });
+
+        // Decrypt and display image
+        decryptButton.addEventListener('click', async () => {
+            const file = encryptedInput.files[0];
+            const passcode = decryptPasscode.value;
+
+            if (!file || passcode.length !== 4 || isNaN(passcode)) {
+                alert('Please select an encrypted file and enter a valid 4-digit passcode.');
+                return;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const key = await deriveKey(passcode);
+                const iv = new Uint8Array(arrayBuffer.slice(0, 12));
+                const encryptedData = new Uint8Array(arrayBuffer.slice(12));
+
+                const decryptedData = await decryptData(encryptedData, key, iv);
+                const blob = new Blob([decryptedData], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+                decryptedImage.src = url;
+                decryptedImage.style.display = 'block';
+            } catch (error) {
+                console.error('Decryption error:', error);
+                alert('An error occurred during decryption. Make sure you have the correct file and passcode.');
+            }
+        });
+
+        // Derive key from passcode
+        async function deriveKey(passcode) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(passcode);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return crypto.subtle.importKey(
+                'raw',
+                hash,
+                { name: 'AES-GCM' },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        // Encrypt data
+        async function encryptData(data, key, iv) {
+            return new Uint8Array(await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            ));
+        }
+
+        // Decrypt data
+        async function decryptData(data, key, iv) {
+            return new Uint8Array(await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            ));
+        }
+    </script>
+</body>
+</html>
